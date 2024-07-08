@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Booking Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            background-color: #4a5fff;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 500;
+            font-size: 1.2em;
+        }
+        #chat-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #4a5fff;
+            color: white;
+        }
+        .bot-message {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .input-area {
+            display: flex;
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #ddd;
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            outline: none;
+        }
+        #send-button {
+            background-color: #4a5fff;
+            border: none;
+            color: white;
+            padding: 0 20px;
+            font-weight: 500;
+            font-size: 16px;
+            border-radius: 25px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        #payment-modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #payment-form {
+            display: flex;
+            flex-direction: column;
+        }
+        #payment-form input, #payment-form select {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #payment-form button {
+            background-color: #4a5fff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-header">Hotel Booking Chatbot</div>
+    <div id="chat-container"></div>
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Type your message here...">
+        <button id="send-button">Send</button>
+    </div>
+
+    <div id="payment-modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Payment Simulation</h2>
+            <form id="payment-form">
+                <input type="text" id="card-number" placeholder="Card Number" required>
+                <input type="text" id="expiry-date" placeholder="MM/YY" required>
+                <input type="text" id="cvv" placeholder="CVV" required>
+                <select id="payment-method" required>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="debit_card">Debit Card</option>
+                    <option value="paypal">PayPal</option>
+                </select>
+                <button type="submit">Pay</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const paymentModal = document.getElementById('payment-modal');
+        const closeModal = document.getElementsByClassName('close')[0];
+        const paymentForm = document.getElementById('payment-form');
+
+        const userId = Math.random().toString(36).substring(7);
+
+        function addMessage(sender, message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender === 'You' ? 'user-message' : 'bot-message');
+            messageElement.innerHTML = message.replace(/\n/g, '<br>');
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message) {
+                addMessage('You', message);
+                userInput.value = '';
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message, userId }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to get response from server');
+                    }
+
+                    const data = await response.json();
+                    addMessage('Chatbot', data.response);
+
+                    // Check if payment is mentioned in the response and user's message
+                    if (data.response.toLowerCase().includes('payment') && 
+                        (message.toLowerCase().includes('pay') || message.toLowerCase().includes('payment'))) {
+                        paymentModal.style.display = "block";
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('Chatbot', 'Sorry, there was an error processing your request.');
+                }
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        closeModal.onclick = function() {
+            paymentModal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == paymentModal) {
+                paymentModal.style.display = "none";
+            }
+        }
+
+        paymentForm.onsubmit = function(e) {
+            e.preventDefault();
+            const amount = 100; // Example amount
+            const method = document.getElementById('payment-method').value;
+            addMessage('Chatbot', `Payment of $${amount} processed via ${method}. Thank you for your booking!`);
+            paymentModal.style.display = "none";
+        }
+
+        // Initial greeting
+        setTimeout(() => {
+            addMessage('Chatbot', 'Hello! How can I assist you with your hotel booking today?');
+        }, 1000);
+    </script>
+</body>
+</html>
